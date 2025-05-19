@@ -1,0 +1,13 @@
+Proyecto programación:
+requerimientos carga de datos
+gestión de libros CRUD
+obtención documentación
+
+Tablas a crear/manejar
+Materias: id, nombre, departamento
+Cursos: curso, nivel
+Libros: isbn, titulo, autor, numero_ejemplares, id_materia, id_curso
+Alumnos: id, nombre, apellidos, tramo (I, II, Ninguno), bilingüe (S/N)
+AlumnosCursosLibros: isbn, id_alumno, id_curso, fecha_entrega, fecha_devolucion, estado (entregado, por_devolver)
+ 
+
