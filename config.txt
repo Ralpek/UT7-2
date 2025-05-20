@@ -1,2 +1,3 @@
+root:1234
 USER = "usu1"
 PASWORD = "1234"
