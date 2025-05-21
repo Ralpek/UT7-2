@@ -1,3 +1,5 @@
 root:1234
-USER = "usu1"
-PASWORD = "1234"
+db_host:127.0.0.1
+db_user:root
+db_password:
+db_name:daw_prog

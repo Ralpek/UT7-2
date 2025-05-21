@@ -1,7 +1,7 @@
-from menu import Menu
+#from menu import Menu
 from gestor.GestorCSV import GestorCSV
 
-class MenuGenerico(Menu):
+class MenuGenerico():
     def __init__(self, titulo, gestor_db, archivo_csv):
         self.titulo = titulo
         self.gestor = gestor_db

@@ -1,43 +1,45 @@
-from menu import Menu
-from MenuGenerico import MenuGenerico
+from gui.MenuGenerico import MenuGenerico
+from gestor.GestorDB import GestorDB
+from gestor.GestorCSV import GestorCSV
 from lib.Alumno import Alumno
 from lib.Libro import Libro
 from lib.Prestamo import Prestamo
-from login import Login
-from gestor.GestorCSV import GestorCSV
-
-CSV_ALUMNOS = "alumnos.csv"
-CSV_LIBROS = "libros.csv"
-CSV_PRESTAMOS = "prestamos.csv"
 
 class MenuPrincipal:
-    def __init__(self):
-        self.login = Login("config.txt")
+    def __init__(self, config):
+        self.config = config
+        self.gestores = {
+            'alumnos': GestorDB(config['db_host'], config['db_user'], config['db_password'], config['db_name'], Alumno),
+            'libros': GestorDB(config['db_host'], config['db_user'], config['db_password'], config['db_name'], Libro),
+            'prestamos': GestorDB(config['db_host'], config['db_user'], config['db_password'], config['db_name'], Prestamo)
+        }
+        self.respaldos = {
+            'alumnos': "alumnos.csv",
+            'libros': "libros.csv",
+            'prestamos': "prestamos.csv"
+        }
 
     def mostrar(self):
-        if not self.login.autenticar():
-            print("Autenticación fallida. Saliendo...")
-            return
-
         while True:
-            print("\nMenú Principal")
-            print("1. Menú Alumnos")
-            print("2. Menú Libros")
-            print("3. Menú Préstamos")
+            print("\n--- Menú Principal ---")
+            print("1. Gestión de Alumnos")
+            print("2. Gestión de Libros")
+            print("3. Gestión de Préstamos")
             print("4. Salir")
-            seleccion = input("Seleccione un menú: ")
+            opcion = input("Seleccione una opción: ")
 
-            if seleccion == '1':
-                MenuGenerico("Gestión de Alumnos", GestorCSV(CSV_ALUMNOS, Alumno)).main()
-            elif seleccion == '2':
-                MenuGenerico("Gestión de Libros", GestorCSV(CSV_LIBROS, Libro)).main()
-            elif seleccion == '3':
-                MenuGenerico("Gestión de Préstamos", GestorCSV(CSV_PRESTAMOS, Prestamo)).main()
-            elif seleccion == '4':
-                print("Saliendo del programa...")
-                break
+            if opcion == '1':
+                MenuGenerico("Alumnos", self.gestores['alumnos'], self.respaldos['alumnos']).main()
+            elif opcion == '2':
+                MenuGenerico("Libros", self.gestores['libros'], self.respaldos['libros']).main()
+            elif opcion == '3':
+                MenuGenerico("Préstamos", self.gestores['prestamos'], self.respaldos['prestamos']).main()
+            elif opcion == '4':
+                confirmar = input("\u00bfSeguro que desea salir? (S/N): ").strip().upper()
+                if confirmar == 'S':
+                    print("Saliendo del sistema...")
+                    break
+                else:
+                    print("Cancelado.")
             else:
-                print("Opción no válida.")
-
-#if __name__ == '__main__':
-#    MenuPrincipal().mostrar()
+                print("Opción no válida. Intente de nuevo.")
