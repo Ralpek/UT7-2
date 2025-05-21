@@ -5,51 +5,47 @@ class GestorCSV:
         self.archivo = archivo
         self.tipo = tipo
         self.objetos = {}
-        self._cargar()
+        self._cargar_desde_csv()
 
     def crear(self):
         data = self._recoger_datos()
-        key = f"{data['nie']}_{data['isbn']}" if self.tipo.__name__ == "Prestamo" else data.get('nie', data.get('isbn'))
+        key = self._clave_primaria(data)
         if key in self.objetos:
-            print("El objeto ya existe o el préstamo está duplicado.")
+            print("Ya existe.")
             return
         self.objetos[key] = self.tipo(**data)
-        print("Creado correctamente.")
+        print("Objeto creado.")
 
     def mostrar(self):
-        if not self.objetos:
-            print("No hay datos.")
-            return
         for obj in self.objetos.values():
             print(obj)
 
     def actualizar(self):
-        key = input("Ingrese la clave primaria (NIE, ISBN o NIE_ISBN): ")
-        obj = self.objetos.get(key)
-        if obj:
-            nuevos_datos = self._recoger_datos()
-            obj.__init__(**nuevos_datos)
-            print("Actualizado correctamente.")
+        key = input("Clave primaria: ")
+        if key in self.objetos:
+            nuevos = self._recoger_datos()
+            self.objetos[key].__init__(**nuevos)
+            print("Actualizado.")
         else:
-            print("No encontrado.")
+            print("No existe.")
 
     def eliminar(self):
-        key = input("Ingrese la clave primaria (NIE, ISBN o NIE_ISBN): ")
+        key = input("Clave primaria: ")
         if key in self.objetos:
             del self.objetos[key]
-            print("Eliminado correctamente.")
+            print("Eliminado.")
         else:
             print("No encontrado.")
 
     def guardar(self):
+        campos = self.tipo.__init__.__code__.co_varnames[1:self.tipo.__init__.__code__.co_argcount]
         with open(self.archivo, 'w', newline='', encoding='utf-8') as f:
-            campos = self.tipo.__init__.__code__.co_varnames[1:self.tipo.__init__.__code__.co_argcount]
             writer = csv.DictWriter(f, fieldnames=campos, delimiter=';')
             writer.writeheader()
             for obj in self.objetos.values():
                 writer.writerow({campo: getattr(obj, campo) for campo in campos})
 
-    def _cargar(self):
+    def _cargar_desde_csv(self):
         try:
             with open(self.archivo, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f, delimiter=';')
@@ -58,15 +54,17 @@ class GestorCSV:
                         row['numero_ejemplares'] = int(row['numero_ejemplares'])
                     if 'bilingue' in row:
                         row['bilingue'] = row['bilingue'] == 'True'
-                    key = f"{row['nie']}_{row['isbn']}" if self.tipo.__name__ == "Prestamo" else row.get('nie', row.get('isbn'))
+                    key = self._clave_primaria(row)
                     self.objetos[key] = self.tipo(**row)
         except FileNotFoundError:
             pass
 
+    def _clave_primaria(self, datos):
+        return f"{datos['nie']}_{datos['isbn']}" if self.tipo.__name__ == "Prestamo" else datos.get('nie', datos.get('isbn'))
+
     def _recoger_datos(self):
         data = {}
-        campos = self.tipo.__init__.__code__.co_varnames[1:self.tipo.__init__.__code__.co_argcount]
-        for campo in campos:
+        for campo in self.tipo.__init__.__code__.co_varnames[1:self.tipo.__init__.__code__.co_argcount]:
             valor = input(f"{campo}: ")
             if campo == 'numero_ejemplares':
                 valor = int(valor)

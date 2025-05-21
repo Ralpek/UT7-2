@@ -39,5 +39,5 @@ class MenuPrincipal:
             else:
                 print("Opción no válida.")
 
-if __name__ == '__main__':
-    MenuPrincipal().mostrar()
+#if __name__ == '__main__':
+#    MenuPrincipal().mostrar()

@@ -1,9 +1,11 @@
 from menu import Menu
+from gestor.GestorCSV import GestorCSV
 
 class MenuGenerico(Menu):
-    def __init__(self, titulo, gestor):
+    def __init__(self, titulo, gestor_db, archivo_csv):
         self.titulo = titulo
-        self.gestor = gestor
+        self.gestor = gestor_db
+        self.csv_backup = GestorCSV(archivo_csv, gestor_db.tipo)
 
     def main(self):
         while True:
@@ -18,8 +20,7 @@ class MenuGenerico(Menu):
         print("2. Mostrar")
         print("3. Actualizar")
         print("4. Eliminar")
-        print("5. Guardar")
-        print("6. Volver al menú principal")
+        print("5. Volver al menú principal (y guardar respaldo CSV)")
 
     def _recoger_opcion_menu(self):
         try:
@@ -28,19 +29,36 @@ class MenuGenerico(Menu):
             return -1
 
     def _tratar_opcion_menu(self, opcion: int) -> bool:
-        acciones = {
-            1: self.gestor.crear,
-            2: self.gestor.mostrar,
-            3: self.gestor.actualizar,
-            4: self.gestor.eliminar,
-            5: self.gestor.guardar
-        }
-        if opcion == 6:
-            self.gestor.guardar()
+        if opcion == 1:
+            data = self._recoger_datos()
+            self.gestor.crear(data)
+        elif opcion == 2:
+            self.gestor.cargar()
+            for obj in self.gestor.objetos.values():
+                print(obj)
+        elif opcion == 3:
+            key = input("Clave primaria: ")
+            nuevos = self._recoger_datos()
+            self.gestor.actualizar(key, nuevos)
+        elif opcion == 4:
+            key = input("Clave primaria: ")
+            self.gestor.eliminar(key)
+        elif opcion == 5:
+            print("Guardando respaldo CSV...")
+            self.csv_backup.guardar(self.gestor.objetos.values())
             return False
-        accion = acciones.get(opcion)
-        if accion:
-            accion()
         else:
             print("Opción no válida.")
         return True
+
+    def _recoger_datos(self):
+        data = {}
+        campos = self.gestor.tipo.__init__.__code__.co_varnames[1:self.gestor.tipo.__init__.__code__.co_argcount]
+        for campo in campos:
+            valor = input(f"{campo}: ")
+            if campo == 'numero_ejemplares':
+                valor = int(valor)
+            if campo == 'bilingue':
+                valor = valor.upper() == 'S'
+            data[campo] = valor
+        return data
