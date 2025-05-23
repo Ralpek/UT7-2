@@ -37,7 +37,7 @@ class GestorCSV:
         else:
             print("No encontrado.")
 
-    def guardar(self):
+    def guardar(self, objetos):
         campos = self.tipo.__init__.__code__.co_varnames[1:self.tipo.__init__.__code__.co_argcount]
         with open(self.archivo, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=campos, delimiter=';')
