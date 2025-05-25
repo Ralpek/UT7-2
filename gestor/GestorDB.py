@@ -1,104 +1,64 @@
-import mysql.connector
-from mysql.connector import errorcode
+from configuracion import Archivo
+import csv
 
 class GestorDB:
-    def __init__(self, host, user, password, database, tipo):
-        self.config = {
-            'host': host,
-            'user': user,
-            'password': password,
-            'database': database
-        }
-        self.tipo = tipo
-        self.conn = None
-        self.cursor = None
-        self.objetos = {}
-        self.conectar()
-        self.cargar()
+    def __init__(self, conexion):
+        self.conexion = conexion
+        self.cursor = conexion.cursor()
+        self._vaciar_tablas()
+        self.cargar_datos()
 
-    def conectar(self):
-        try:
-            self.conn = mysql.connector.connect(**self.config)
-            self.conn.autocommit = True
-            self.cursor = self.conn.cursor(dictionary=True)
-        except mysql.connector.Error as err:
-            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-                print("Error de acceso a la base de datos")
-            elif err.errno == errorcode.ER_BAD_DB_ERROR:
-                print("La base de datos no existe")
-            else:
-                print(err)
+    def _vaciar_tablas(self):
+        self.cursor.execute("SET FOREIGN_KEY_CHECKS=0")
+        for tabla in ["alumnoscrusoslibros", "libros", "alumnos", "cursos", "materias"]:
+            self.cursor.execute(f"DELETE FROM {tabla}")
+        self.cursor.execute("SET FOREIGN_KEY_CHECKS=1")
+        self.conexion.commit()
+        print("Tablas vaciadas correctamente.")
 
-    def cerrar(self):
+    def cerrar_conexion(self):
         if self.cursor:
             self.cursor.close()
-        if self.conn:
-            self.conn.close()
+        if self.conexion:
+            self.conexion.close()
 
-    def cargar(self):
-        tabla = self.tipo.__name__.lower() + 's'
-        self.objetos = {}
-        try:
-            self.cursor.execute(f"SELECT * FROM {tabla}")
-            for row in self.cursor.fetchall():
-                key = f"{row['nie']}_{row['isbn']}" if self.tipo.__name__ == "Prestamo" else row.get('nie', row.get('isbn'))
-                if 'numero_ejemplares' in row:
-                    row['numero_ejemplares'] = int(row['numero_ejemplares'])
-                if 'bilingue' in row:
-                    row['bilingue'] = row['bilingue'] in ['1', 1, True, 'True']
-                self.objetos[key] = self.tipo(**row)
-        except mysql.connector.Error as err:
-            print(f"Error al cargar: {err}")
+    def cargar_datos(self):
+        def cargar_csv(ruta):
+            with open(ruta, encoding='utf-8') as f:
+                f.readline()
+                reader = csv.reader(f, delimiter=',', quotechar='"')
+                return [linea for linea in reader]
 
-    def crear(self, data):
-        key = f"{data['nie']}_{data['isbn']}" if self.tipo.__name__ == "Prestamo" else data.get('nie', data.get('isbn'))
-        if key in self.objetos:
-            print("Ya existe.")
+        def cargar_tabla(nombre_tabla, columnas, datos):
+            self.cursor.execute(f"DELETE FROM {nombre_tabla}")
+            for fila in datos:
+                valores = ', '.join([f'"{campo}"' for campo in fila])
+                sql = f"INSERT INTO {nombre_tabla} ({', '.join(columnas)}) VALUES ({valores})"
+                self.cursor.execute(sql)
+
+        # Cargar materias necesarias
+        self.cursor.execute("INSERT IGNORE INTO materias (id, nombre, departamento) VALUES (1, 'Literatura', 'Lengua'), (2, 'Lengua', 'Lengua'), (3, 'Historia', 'Sociales')")
+
+        # Cargar cursos necesarios
+        self.cursor.execute("INSERT IGNORE INTO cursos (curso, nivel) VALUES ('1ESO', 'ESO'), ('2ESO', 'ESO'), ('3ESO', 'ESO')")
+
+        cargar_tabla('alumnos', ['nie', 'nombre', 'apellidos', 'tramo', 'bilingue'], cargar_csv(Archivo.FILE_ALUMNOS))
+        cargar_tabla('libros', ['isbn', 'titulo', 'autor', 'numero_ejemplares', 'id_materia', 'id_curso'], cargar_csv(Archivo.FILE_LIBROS))
+        cargar_tabla('alumnoscrusoslibros', ['nie', 'curso', 'isbn', 'fecha_entrega', 'fecha_devolucion', 'estado'], cargar_csv(Archivo.FILE_PRESTAMOS))
+
+        self.conexion.commit()
+        print("Datos cargados correctamente desde CSV a la base de datos.")
+
+    def guardar_consulta(self, datos, nombre_archivo="consulta.csv"):
+        if not datos:
+            print("No hay resultados para guardar.")
             return
-        self.objetos[key] = self.tipo(**data)
-        campos = ', '.join(data.keys())
-        valores = ', '.join(['%s'] * len(data))
-        sql = f"INSERT INTO {self.tipo.__name__.lower()}s ({campos}) VALUES ({valores})"
         try:
-            self.cursor.execute(sql, tuple(data.values()))
-            print("Creado correctamente.")
-        except mysql.connector.Error as err:
-            print(f"Error al insertar: {err}")
+            with open(nombre_archivo, "w", newline='', encoding="utf-8") as f:
+                writer = csv.writer(f, delimiter=",", quotechar='"', quoting=csv.QUOTE_ALL)
+                writer.writerows(datos)
+            print(f"Resultado guardado en '{nombre_archivo}'.")
+        except Exception as e:
+            print(f"Error al guardar el archivo: {e}")
 
-    def actualizar(self, key, nuevos_datos):
-        if key not in self.objetos:
-            print("No encontrado.")
-            return
-        self.objetos[key].__init__(**nuevos_datos)
-        sets = ', '.join([f"{campo}=%s" for campo in nuevos_datos])
-        if self.tipo.__name__ == "Prestamo":
-            where = "nie=%s AND isbn=%s"
-            claves = key.split('_')
-        else:
-            pk = 'nie' if 'nie' in nuevos_datos else 'isbn'
-            where = f"{pk}=%s"
-            claves = [key]
-        sql = f"UPDATE {self.tipo.__name__.lower()}s SET {sets} WHERE {where}"
-        try:
-            self.cursor.execute(sql, tuple(nuevos_datos.values()) + tuple(claves))
-            print("Actualizado correctamente.")
-        except mysql.connector.Error as err:
-            print(f"Error al actualizar: {err}")
 
-    def eliminar(self, key):
-        if key not in self.objetos:
-            print("No encontrado.")
-            return
-        if self.tipo.__name__ == "Prestamo":
-            sql = f"DELETE FROM prestamos WHERE nie=%s AND isbn=%s"
-            claves = key.split('_')
-        else:
-            pk = 'nie' if self.tipo.__name__ == 'Alumno' else 'isbn'
-            sql = f"DELETE FROM {self.tipo.__name__.lower()}s WHERE {pk}=%s"
-            claves = [key]
-        try:
-            self.cursor.execute(sql, tuple(claves))
-            del self.objetos[key]
-            print("Eliminado correctamente.")
-        except mysql.connector.Error as err:
-            print(f"Error al eliminar: {err}")

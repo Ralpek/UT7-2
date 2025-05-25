@@ -1,45 +1,44 @@
-from gui.MenuGenerico import MenuGenerico
+from gui.Menu import Menu
 from gestor.GestorDB import GestorDB
-from gestor.GestorCSV import GestorCSV
-from lib.Alumno import Alumno
-from lib.Libro import Libro
-from lib.Prestamo import Prestamo
 
-class MenuPrincipal:
-    def __init__(self, config):
-        self.config = config
-        self.gestores = {
-            'alumnos': GestorDB(config['db_host'], config['db_user'], config['db_password'], config['db_name'], Alumno),
-            'libros': GestorDB(config['db_host'], config['db_user'], config['db_password'], config['db_name'], Libro),
-            'prestamos': GestorDB(config['db_host'], config['db_user'], config['db_password'], config['db_name'], Prestamo)
-        }
-        self.respaldos = {
-            'alumnos': "alumnos.csv",
-            'libros': "libros.csv",
-            'prestamos': "prestamos.csv"
-        }
+class MenuPrincipal(Menu):
+    def __init__(self, menu_alumnos, menu_prestamos, menu_libros, conexion):
+        self.menu_alumnos = menu_alumnos
+        self.menu_prestamos = menu_prestamos
+        self.menu_libros = menu_libros
+        self.conexion = conexion
+        self.gestor_db = GestorDB(conexion)
 
-    def mostrar(self):
+    def main(self):
         while True:
-            print("\n--- Menú Principal ---")
-            print("1. Gestión de Alumnos")
-            print("2. Gestión de Libros")
-            print("3. Gestión de Préstamos")
-            print("4. Salir")
-            opcion = input("Seleccione una opción: ")
+            self._visualizar_menu()
+            if not self._tratar_opcion_menu(self._recoger_opcion_menu()):
+                break
 
-            if opcion == '1':
-                MenuGenerico("Alumnos", self.gestores['alumnos'], self.respaldos['alumnos']).main()
-            elif opcion == '2':
-                MenuGenerico("Libros", self.gestores['libros'], self.respaldos['libros']).main()
-            elif opcion == '3':
-                MenuGenerico("Préstamos", self.gestores['prestamos'], self.respaldos['prestamos']).main()
-            elif opcion == '4':
-                confirmar = input("\u00bfSeguro que desea salir? (S/N): ").strip().upper()
-                if confirmar == 'S':
-                    print("Saliendo del sistema...")
-                    break
-                else:
-                    print("Cancelado.")
-            else:
-                print("Opción no válida. Intente de nuevo.")
+    def _visualizar_menu(self):
+        print("\n=== MENU PRINCIPAL ===")
+        print("1. Menú Alumnos")
+        print("2. Menú Libros")
+        print("3. Menú Préstamos")
+        print("4. Salir")
+
+    def _recoger_opcion_menu(self) -> int:
+        try:
+            return int(input("Seleccione una opción: "))
+        except ValueError:
+            print("Entrada inválida. Intente de nuevo.")
+            return -1
+
+    def _tratar_opcion_menu(self, opcion: int) -> bool:
+        if opcion == 1:
+            self.menu_alumnos.main()
+        elif opcion == 2:
+            self.menu_libros.main()
+        elif opcion == 3:
+            self.menu_prestamos.main()
+        elif opcion == 4:
+            confirm = input("¿Seguro que desea salir? (S/N): ").strip().upper()
+            return confirm != 'S'
+        else:
+            print("Opción no válida.")
+        return True
